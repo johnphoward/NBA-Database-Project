@@ -19,7 +19,10 @@ class SelectionBar extends React.Component {
     };
     this.showScheduled = this.showScheduled.bind(this);
     this.showCustom = this.showCustom.bind(this);
-    this.setGame = this.setGame.bind(this);
+    this.setYearForBar = this.setYearForBar.bind(this);
+    this.setDateForBar = this.setDateForBar.bind(this);
+    this.setGameForBar = this.setGameForBar.bind(this);
+
   }
 
   showScheduled() {
@@ -30,7 +33,15 @@ class SelectionBar extends React.Component {
     this.setState({scheduled: false});
   }
 
-  setGame(givenGame) {
+  setYearForBar(year) {
+    this.setState({year: year});
+  }
+
+  setDateForBar(date) {
+    this.setState({date: date});
+  }
+
+  setGameForBar(givenGame) {
     this.setState({game: givenGame});
   }
 
@@ -66,12 +77,12 @@ class SelectionBar extends React.Component {
         <h2 style={header_style}>Select a game to view</h2>
         <InlineButton text="Scheduled" total={2} callback={this.showScheduled}/>
         <InlineButton text="Customized" total={2} callback={this.showCustom}/>
-        <YearBar />
+        <YearBar callback={this.setYearForBar}/>
 
         {this.state.scheduled ? (
             <div style={menu_div_style}>
-                <DateMenu dateArray={["a", "b", "c"]}/>
-                <GameMenu gameArray={[1, 2, 3]} callback={this.setGame}/>
+                <DateMenu dateArray={["a", "b", "c"]} callback={this.setDateForBar}/>
+                <GameMenu gameArray={[1, 2, 3]} callback={this.setGameForBar}/>
             </div>
         ) : (
             <div>Custom</div>

@@ -18,7 +18,6 @@ class UI extends React.Component {
         position: 'fixed',
         left: '50%',
         marginLeft: '-45%'
-
     }
 
     return (

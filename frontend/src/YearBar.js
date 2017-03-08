@@ -12,8 +12,9 @@ class YearBar extends React.Component {
     this.setYear = this.setYear.bind(this);
   }
 
-  setYear(year) {
-      console.log(year);
+  setYear(evt, newYear) {
+      this.setState({year: newYear});
+      this.props.callback(newYear);
   }
 
   render() {
@@ -36,8 +37,10 @@ class YearBar extends React.Component {
     };
 
     const years = _.range(1987, 2018);
-    const year_list = years.map((val) =>
-        <li style={li_style} onClick={_.partial(this.setYear(val))}>{val}</li>
+    const year_list = years.map((yr) =>
+        <li key={yr} style={li_style} onClick={_.partial(this.setYear, _, yr)}>
+            {yr}
+        </li>
     );
 
     return (
