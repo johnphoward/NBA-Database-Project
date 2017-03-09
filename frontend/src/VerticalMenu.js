@@ -13,7 +13,6 @@ class VerticalMenu extends React.Component {
     const width = 50;
     const borderSize = 1;
 
-
     const div_style = {
         display: 'inline-block',
         textAlign: 'center',
@@ -24,13 +23,14 @@ class VerticalMenu extends React.Component {
         backgroundColor: 'grey',
         borderBottomLeftRadius: '5px',
         borderBottomRightRadius: '5px',
+        float: 'left'
     };
 
     const ul_style = {
         listStyleType: 'none',
         padding: '0px',
         margin: '0px',
-        overflow: 'auto'
+        overflow: 'scroll'
     };
 
     var values = this.generateListItems();

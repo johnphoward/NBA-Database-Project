@@ -28,7 +28,7 @@ class YearBar extends React.Component {
         listStyleType: 'none',
         padding: '0px',
         margin: '0px',
-        overflow: 'scroll'
+        overflow: 'scroll',
     };
 
     const li_style = {

@@ -1,5 +1,5 @@
 from time import sleep
-from flask import Flask
+from flask import Flask, Response
 
 from backend.db_engine import Engine
 
@@ -33,9 +33,12 @@ def release_engine(engine):
 def get_schedule(season):
     """ send the league's schedule for a season to front end """
     engine = get_next_engine()
-    response = engine.get_league_schedule_for_season(season)
+    engine_response = engine.get_league_schedule_for_season(season)
+    resp = Response(engine_response)
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Headers'] = '*'
     release_engine(engine)
-    return response
+    return resp
 
 
 @app.route('/teamsforseason=<season>')

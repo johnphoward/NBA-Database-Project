@@ -100,7 +100,8 @@ class DataCollector:
                 y, m, d = game_code[:4], game_code[4:6], game_code[6:8]
                 schedule.append((game_code, y, m, d, year, away_team, home_team))
 
-        # self.engine.insert_scheduled_games(schedule)
-        return schedule
+        self.engine.insert_scheduled_games(schedule)
+        self.engine.commit_changes()
+        # return schedule
 
-print DataCollector().get_season_schedule('1991')
+DataCollector().get_season_schedule('2017')
