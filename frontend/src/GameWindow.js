@@ -19,7 +19,7 @@ class GameWindow extends React.Component {
     };
 
     return (
-      <div style={style} id="gamewindow">GameWindow</div>
+      <div style={style} id="gamewindow">{this.props.game}</div>
     );
   }
 }

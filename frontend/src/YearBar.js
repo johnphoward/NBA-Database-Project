@@ -36,7 +36,7 @@ class YearBar extends React.Component {
         marginRight: '8px'
     };
 
-    const years = _.range(1987, 2018);
+    const years = _.range(1986, 2018);
     const year_list = years.map((yr) =>
         <li key={yr} style={li_style} onClick={_.partial(this.setYear, _, yr)}>
             {yr}

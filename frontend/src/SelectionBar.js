@@ -4,8 +4,6 @@ import YearBar from './YearBar';
 import DateMenu from './DateMenu';
 import GameMenu from './GameMenu';
 import DataFetcher from './DataFetcher';
-import axios from 'axios';
-
 
 
 /**
@@ -50,7 +48,11 @@ class SelectionBar extends React.Component {
   }
 
   setYearForBar(year) {
-    this.setState({year: year});
+    this.setState({
+        year: year,
+        dateArray: [],
+        gameArray: []
+    });
     var endpoint = 'scheduleforseason=' + year.toString();
 
     this.state.dataFetcher.fetchData(endpoint, this.loadSchedule);
@@ -65,6 +67,9 @@ class SelectionBar extends React.Component {
 
   setGameForBar(givenGame) {
     this.setState({game: givenGame});
+    if (this.props.game_callback != null) {
+      this.props.game_callback(givenGame);
+    }
   }
 
   componentDidMount() {

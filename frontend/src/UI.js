@@ -6,6 +6,20 @@ import GameWindow from './GameWindow';
  * The base class from which the UI will be built
  */
 class UI extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      game_id: null,
+    }
+
+    this.setGame = this.setGame.bind(this);
+  }
+
+  setGame(new_game_id) {
+    this.setState({game_id: new_game_id});
+  }
+
+
   render() {
     const style = {
         width: '90%',
@@ -22,8 +36,8 @@ class UI extends React.Component {
 
     return (
         <div style={style} id="myui">
-            <SelectionBar />
-            <GameWindow />
+            <SelectionBar game_callback={this.setGame}/>
+            <GameWindow game={this.state.game_id}/>
         </div>
     );
   }
