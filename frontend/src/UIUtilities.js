@@ -35,7 +35,7 @@ class UIUtilities {
     this.teamColorLookup = {
       'ATL':'#ff3333',
       'BOS':'#006622',
-      'BRK':'white',
+      'BRK':'#ffffff',
       'CHO':'#0099cc',
       'CHI':'#cc0000',
       'CLE':'#800000',
@@ -59,7 +59,7 @@ class UIUtilities {
       'PHO':'#7200e6',
       'POR':'#cc0000',
       'SAC':'#5900b3',
-      'SAS':'white',
+      'SAS':'#ffffff',
       'TOR':'#cc0000',
       'UTA':'#0000b3',
       'WAS':'#000080'

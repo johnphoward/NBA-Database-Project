@@ -8,6 +8,58 @@ USER = 'root'
 PASSWORD = 'rootsqlpword'
 DATABASE = 'nba_stats'
 
+AWAY_COLUMNS = [
+    'away_pts',
+    'away_fgm',
+    'away_fga',
+    'away_3pm',
+    'away_3pa',
+    'away_ftm',
+    'away_fta',
+    'away_orb',
+    'away_drb',
+    'away_apg',
+    'away_stl',
+    'away_blk',
+    'away_tov'
+]
+
+AWAY_POS_COLUMNS = [
+    'away_pts',
+    'away_fgm',
+    'away_fga',
+    'away_fta',
+    'away_orb',
+    'away_drb',
+    'away_tov'
+]
+
+HOME_COLUMNS = [
+    'home_pts',
+    'home_fgm',
+    'home_fga',
+    'home_3pm',
+    'home_3pa',
+    'home_ftm',
+    'home_fta',
+    'home_orb',
+    'home_drb',
+    'home_ast',
+    'home_stl',
+    'home_blk',
+    'home_tov',
+]
+
+HOME_POS_COLUMNS = [
+    'home_pts',
+    'home_fgm',
+    'home_fga',
+    'home_fta',
+    'home_orb',
+    'home_drb',
+    'home_tov'
+]
+
 
 class Engine:
     """ For all database related connections """
@@ -19,7 +71,9 @@ class Engine:
     def insert_box_score(self, data_tuple):
         """ Insert one box score into box_scores table at a time """
         table_name = 'box_scores'
-        cmd = "INSERT INTO %s VALUES %s;" % (table_name, str(data_tuple))
+        # replace instances of python None with null for insertion
+        game_string = str(data_tuple).replace("None", "null")
+        cmd = "INSERT INTO %s VALUES %s;" % (table_name, game_string)
         self.cursor.execute(cmd)
 
     @staticmethod
@@ -32,9 +86,36 @@ class Engine:
             'home': game_tup[5]
         }
 
-    def get_team_schedule_for_year(self, team_abbr, year):
-        """ Get a list of a team's games for a given season """
-        pass
+    def get_team_games_for_year(self, team_abbr, year):
+        """
+            Get the box score of a team's games for a given season.
+            Games will be organized as team stats first, opponent stats second
+        """
+        mutual_columns = [
+            'schedule.game_id',
+            'schedule.away_team',
+            'schedule.home_team',
+            'minutes'
+        ]
+
+        cmd = ('SELECT {cols} from box_scores '
+               'join schedule on box_scores.schedule_id=schedule.game_id '
+               'where season_year=%d '
+               'and {clause};' % year)
+
+        mutual_clause = 'schedule.{away_or_home}_team="%s"' % team_abbr
+
+        away_cmd = cmd.format(cols=', '.join(mutual_columns + AWAY_COLUMNS + HOME_POS_COLUMNS),
+                              clause=mutual_clause.format(away_or_home='away'))
+        home_cmd = cmd.format(cols=', '.join(mutual_columns + HOME_COLUMNS + AWAY_POS_COLUMNS),
+                              clause=mutual_clause.format(away_or_home='home'))
+
+        self.cursor.execute(away_cmd)
+        away_games = self.cursor.fetchall()
+        self.cursor.execute(home_cmd)
+        home_games = self.cursor.fetchall()
+
+        return sorted(list(away_games) + list(home_games), key=lambda tup: tup[0])
 
     def get_league_schedule_for_season(self, year):
         """ Get a list of all scheduled games in the league for a given season """
@@ -113,7 +194,7 @@ class Engine:
         date_string = today.strftime('%Y%m%d')
         cmd = ("SELECT game_id "
                "FROM schedule "
-               "WHERE game_id NOT IN (SELECT game_id from box_scores) "
+               "WHERE game_id NOT IN (SELECT schedule_id from box_scores) "
                "AND game_id < '%s';" % date_string)
 
         self.cursor.execute(cmd)
@@ -125,6 +206,15 @@ class Engine:
         games_string = ', '.join(map(str, games_list))
         cmd = "INSERT INTO %s VALUES %s;" % (table_name, games_string)
         self.cursor.execute(cmd)
+
+    def insert_calculated_team_stats(self, team, year, final_data):
+        cleanup_cmd = 'DELETE FROM team_stats WHERE team="{tm}" and year={yr}'.format(tm=team, yr=year)
+        self.cursor.execute(cleanup_cmd)
+
+        values = ', '.join([str(tuple(row)) for row in final_data])
+        insert_cmd = 'INSERT INTO team_stats VALUES ' + values + ';'
+
+        self.cursor.execute(insert_cmd)
 
     def commit_changes(self):
         """ Commit all changes to the database """

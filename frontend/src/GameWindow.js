@@ -1,4 +1,5 @@
 import React from 'react';
+import GameBasics from './GameBasics'
 
 /**
  * This class holds all of the sub-elements of the window displaying the game
@@ -19,7 +20,10 @@ class GameWindow extends React.Component {
     };
 
     return (
-      <div style={style} id="gamewindow">{this.props.game}</div>
+      <div style={style} id="gamewindow">
+        <GameBasics game={this.props.game}/>
+      </div>
+
     );
   }
 }

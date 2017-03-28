@@ -1,8 +1,8 @@
 import requests
 from lxml import html
-from backend import db_engine
-from datetime import date
-
+from backend.db_engine import Engine
+from backend.data_processing import DataProcessor
+from backend.settings import SEASON_LIST
 
 ZERO = '0'
 SLASH = '/'
@@ -22,19 +22,12 @@ REQUEST_HEADERS = {
     'Referer': 'http://www.basketball-reference.com/'
 }
 
-FIRST_YEAR = 1986
-
 
 class DataCollector:
     """ For all data collection. """
     def __init__(self):
-        self.engine = db_engine.Engine()
-
-        self.date = date.today()
-        this_season = self.date.year + int(self.date.month > 9)
-
-        # add 1 because range is not inclusive for upper limit
-        self.season_list = range(FIRST_YEAR, this_season + 1)
+        self.engine = Engine()
+        self.processor = DataProcessor()
 
     def get_single_box_score(self, game_id):
         """
@@ -56,14 +49,14 @@ class DataCollector:
 
         home_stats, away_stats = [], []
 
-        for stat in ['pts', 'fg', 'fga', 'fta', 'orb', 'drb', 'tov']:
+        for stat in ['pts', 'fg', 'fga', 'fg3', 'fg3a', 'ft', 'fta', 'orb', 'drb', 'ast', 'stl', 'blk', 'tov']:
             away, home = page_tree.xpath(BK_REF_XPATH % stat)
             away_stats.append(int(away.text.strip()))
             home_stats.append(int(home.text.strip()))
 
         minutes = int(page_tree.xpath(BK_REF_XPATH % 'mp')[0].text.strip()) / 5
 
-        data_values = tuple([game_id] + away_stats + home_stats + [minutes])
+        data_values = tuple([None, None, game_id] + away_stats + home_stats + [minutes])
 
         self.engine.insert_box_score(data_values)
 
@@ -90,6 +83,7 @@ class DataCollector:
             away_xpath = 'td[1]/a' if int(year) <= 2000 else 'td[2]/a'
             away_teams = page_tree.xpath(BK_REF_SCHEDULE_XPATH + away_xpath)
 
+            # handle special case for april, where playoff games are displayed on the page
             if month == 'april':
                 header_list = page_tree.xpath(BK_REF_SCHEDULE_XPATH + 'th')
                 try:
@@ -106,8 +100,8 @@ class DataCollector:
                 away_url = away_teams[index].attrib['href']
                 away_team = away_url.split('/')[2]
                 home_team = game_code[-3:]
-                y, m, d = game_code[:4], game_code[4:6], game_code[6:8]
-                schedule.append((game_code, y, m, d, year, away_team, home_team))
+                game_date = '{}-{}-{}'.format(game_code[:4], game_code[4:6], game_code[6:8])
+                schedule.append((game_code, game_date, year, away_team, home_team))
 
         self.engine.insert_scheduled_games(schedule)
         self.engine.commit_changes()
@@ -117,7 +111,7 @@ class DataCollector:
         simple loop to gather all games from 1986 to the present
         """
         print "Loading each season schedule and saving to database:"
-        for season in self.season_list:
+        for season in SEASON_LIST:
             print season
             self.get_season_schedule(season)
 
@@ -135,9 +129,10 @@ class DataCollector:
         """ Starting with model but no records, fill in the database """
         # start by loading teams table in
         self.engine.insert_all_team_data()
-        # gather and save all scheduled games into db
+        # # gather and save all scheduled games into db
         self.gather_all_scheduled_games()
         # gather and save all box scores into db
         self.gather_all_box_scores()
+        # calculate all team stats from box scores
+        self.processor.complete_database_setup()
 
-# DataCollector().fill_database_from_scratch()
