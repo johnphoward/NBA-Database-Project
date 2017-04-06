@@ -81,9 +81,9 @@ class Engine:
         """ Helper to convert tuple from database to a dictionary of the game values"""
         return {
             'game_id': game_tup[0],
-            'date': str(game_tup[2]) + '/' + str(game_tup[3]) + '/' + str(game_tup[1]),
-            'away': game_tup[4],
-            'home': game_tup[5]
+            'date': game_tup[1].strftime("%B %-d, %Y"),
+            'away': game_tup[2],
+            'home': game_tup[3]
         }
 
     def get_team_games_for_year(self, team_abbr, year):
@@ -119,7 +119,7 @@ class Engine:
 
     def get_league_schedule_for_season(self, year):
         """ Get a list of all scheduled games in the league for a given season """
-        cmd = ("SELECT game_id, year, month, day, away_team, home_team "
+        cmd = ("SELECT game_id, date, away_team, home_team "
                "FROM schedule "
                "WHERE season_year=%s "
                "ORDER BY game_id" % year)
@@ -208,6 +208,7 @@ class Engine:
         self.cursor.execute(cmd)
 
     def insert_calculated_team_stats(self, team, year, final_data):
+        """ insert a list of tuples consisting of all rows of a team's calculated stats for season"""
         cleanup_cmd = 'DELETE FROM team_stats WHERE team="{tm}" and year={yr}'.format(tm=team, yr=year)
         self.cursor.execute(cleanup_cmd)
 
@@ -215,6 +216,133 @@ class Engine:
         insert_cmd = 'INSERT INTO team_stats VALUES ' + values + ';'
 
         self.cursor.execute(insert_cmd)
+
+    def create_stored_procedure(self):
+        procedure_cmd = ("DROP PROCEDURE IF EXISTS nba_stats.game_stats;\n"
+                         "DELIMITER $$\n"
+                         "CREATE PROCEDURE nba_stats.game_stats("
+                         "IN this_game_id VARCHAR(12), "
+                         "IN team_name VARCHAR(3), "
+                         "IN game_year INT)\n"
+                         "BEGIN\n"
+                         "SELECT * from team_stats where "
+                         "year=game_year and team=team_name and game_number="
+                         "(SELECT count(game_id) FROM nba_stats.schedule where "
+                         "season_year=game_year and (away_team=team_name or home_team=team_name)"
+                         "and game_id < this_game_id);\n"
+                         "END$$\n"
+                         "DELIMITER ;")
+        self.cursor.execute(procedure_cmd)
+        self.cursor.fetchall()
+
+    @staticmethod
+    def box_score_tuple_to_dict(game_tup):
+        if game_tup is None:
+            return {}
+        return {
+            'away': {
+                'points': game_tup[3],
+                'fgm': game_tup[4],
+                'fga': game_tup[5],
+                '3pm': game_tup[6],
+                '3pa': game_tup[7],
+                'ftm': game_tup[8],
+                'fta': game_tup[9],
+                'orb': game_tup[10],
+                'drb': game_tup[11],
+                'ast': game_tup[12],
+                'stl': game_tup[13],
+                'blk': game_tup[14],
+                'tov': game_tup[15]
+            },
+            'home': {
+                'points': game_tup[16],
+                'fgm': game_tup[17],
+                'fga': game_tup[18],
+                '3pm': game_tup[19],
+                '3pa': game_tup[20],
+                'ftm': game_tup[21],
+                'fta': game_tup[22],
+                'orb': game_tup[23],
+                'drb': game_tup[24],
+                'ast': game_tup[25],
+                'stl': game_tup[26],
+                'blk': game_tup[27],
+                'tov': game_tup[28]
+            },
+            'overtime': (game_tup[29] - 48) / 5
+        }
+
+    @staticmethod
+    def stat_tuple_to_dict(stat_tup):
+        if stat_tup is None:
+            return {}
+        other_stats = map(float, stat_tup[6:])
+        return {
+            'record': '%d-%d' % (stat_tup[4], stat_tup[5]),
+            'offensive_rating': other_stats[0],
+            'defensive_rating': other_stats[1],
+            'net_rating': other_stats[2],
+            'pace': other_stats[3],
+            'ppg': other_stats[4],
+            'fgmpg': other_stats[5],
+            'fgapg': other_stats[6],
+            'fg_pct': other_stats[7],
+            '3fgmpg': other_stats[8],
+            '3fgapg': other_stats[9],
+            '3fg_pct': other_stats[10],
+            'ftmpg': other_stats[11],
+            'ftapg': other_stats[12],
+            'ft_pct': other_stats[13],
+            'orpg': other_stats[14],
+            'drpg': other_stats[15],
+            'apg': other_stats[16],
+            'stlpg': other_stats[17],
+            'blkpg': other_stats[18],
+            'tovpg': other_stats[19],
+        }
+
+    def get_game_data(self, game_id):
+        """
+        return all relevant data for a given game id to front end
+        """
+        first_cmd = 'SELECT game_id, date, away_team, home_team FROM schedule where game_id="%s";' % game_id
+        self.cursor.execute(first_cmd)
+        response = self.game_tuple_to_game(self.cursor.fetchone())
+
+        secondary = 'SELECT full_name, location, nickname from teams where team_abbreviation="{tm}"'
+        self.cursor.execute(secondary.format(tm=response['away']))
+        team_info = self.cursor.fetchone()
+        response['away_team_details'] = {'full': team_info[0], 'location': team_info[1], 'nickname': team_info[2]}
+
+        self.cursor.execute(secondary.format(tm=response['home']))
+        team_info = self.cursor.fetchone()
+        response['home_team_details'] = {'full': team_info[0], 'location': team_info[1], 'nickname': team_info[2]}
+
+        box_cmd = 'SELECT * from box_scores where schedule_id="{game}";'.format(game=game_id)
+        self.cursor.execute(box_cmd)
+        box_score = self.cursor.fetchone()
+        response['box_score'] = self.box_score_tuple_to_dict(box_score)
+
+        season = int(game_id[:4]) + int(int(game_id[4:6]) > 9)
+        away_back_cmd = 'Call game_stats("{id}", "{tm}", {yr});'.format(id=game_id, tm=response['away'], yr=season)
+        self.cursor.execute(away_back_cmd)
+        away_background = self.cursor.fetchone()
+        # solve weird Commands out of Sync error by closing after each stored
+        self.cursor.close()
+        self.cursor = self.db.cursor()
+        home_back_cmd = 'Call game_stats("{id}", "{tm}", {yr});'.format(id=game_id, tm=response['home'], yr=season)
+        self.cursor.execute(home_back_cmd)
+        home_background = self.cursor.fetchone()
+        self.cursor.close()
+        self.cursor = self.db.cursor()
+
+        response['stats'] = {
+            'away': self.stat_tuple_to_dict(away_background),
+            'home': self.stat_tuple_to_dict(home_background)
+        }
+
+        return dumps(response)
 
     def commit_changes(self):
         """ Commit all changes to the database """

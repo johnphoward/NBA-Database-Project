@@ -15,6 +15,7 @@ class DateMenu extends VerticalMenu {
   }
 
   setDate(evt, dateString) {
+    this.setState({date: dateString});
     this.props.callback(dateString);
   }
 
@@ -25,8 +26,10 @@ class DateMenu extends VerticalMenu {
         cursor: 'pointer'
     };
 
+    var selected_style = Object.assign({}, li_style, {backgroundColor: 'red'});
+
     const dateList = this.props.dateArray.map((dateString) =>
-        <li key={dateString} style={li_style} onClick={_.partial(this.setDate, _, dateString)}>
+        <li key={dateString} style={dateString == this.state.date ? selected_style : li_style} onClick={_.partial(this.setDate, _, dateString)}>
             {parseInt(dateString.substring(4, 6)).toString() + ' / ' +
              parseInt(dateString.substring(6)).toString() + ' / ' +
              dateString.substring(2,4)}

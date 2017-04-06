@@ -2,7 +2,7 @@ import requests
 from lxml import html
 from backend.db_engine import Engine
 from backend.data_processing import DataProcessor
-from backend.settings import SEASON_LIST
+from backend.settings import SEASON_LIST, CURRENT_SEASON
 
 ZERO = '0'
 SLASH = '/'
@@ -136,3 +136,6 @@ class DataCollector:
         # calculate all team stats from box scores
         self.processor.complete_database_setup()
 
+    def in_season_update(self):
+        self.gather_all_box_scores()
+        self.processor.process_all_stats_for_year(CURRENT_SEASON)

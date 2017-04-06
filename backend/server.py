@@ -40,14 +40,24 @@ def get_schedule(season):
     release_engine(engine)
     return resp
 
+# @app.route('/teamsforseason=<season>')
+# def teams_in_league(season):
+#     """ send list of teams competing in league in given season to front end """
+#     engine = get_next_engine()
+#     response = engine.get_teams_in_league(season)
+#     release_engine(engine)
+#     return response
 
-@app.route('/teamsforseason=<season>')
-def teams_in_league(season):
-    """ send list of teams competing in league in given season to front end """
+
+@app.route('/gameinformation=<gameid>')
+def get_game_info(gameid):
     engine = get_next_engine()
-    response = engine.get_teams_in_league(season)
+    engine_response = engine.get_game_data(gameid)
+    resp = Response(engine_response)
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Headers'] = '*'
     release_engine(engine)
-    return response
+    return engine_response
 
 
 if __name__ == '__main__':

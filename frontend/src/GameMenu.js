@@ -34,7 +34,9 @@ class GameMenu extends VerticalMenu {
         border: '1px solid black',
         margin: '4px',
         background: 'white',
-        borderRadius: '15px'
+        borderRadius: '15px',
+        height: '50px',
+        width: '50px'
     };
 
     const im2_style = {
@@ -42,7 +44,9 @@ class GameMenu extends VerticalMenu {
         border: '1px solid black',
         margin: '4px',
         background: 'white',
-        borderRadius: '15px'
+        borderRadius: '15px',
+        height: '50px',
+        width: '50px'
     };
 
     const p1_style = {

@@ -76,3 +76,4 @@ class DataProcessor:
         for season in SEASON_LIST:
             self.process_all_stats_for_year(season)
 
+        # self.engine.create_stored_procedure()

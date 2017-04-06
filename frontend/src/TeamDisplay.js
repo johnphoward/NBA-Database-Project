@@ -16,7 +16,8 @@ class TeamDisplay extends React.Component {
         height: 'calc(50% - ' + (h3_size / 2 + 2 * border_size) +  'px)',
         background: 'white',
         padding: '0px',
-        border: border_size + 'px solid black'
+        border: border_size + 'px solid black',
+        overflow: 'hidden'
     };
 
     if (this.props.bottom) {
@@ -28,7 +29,9 @@ class TeamDisplay extends React.Component {
         border: border_size + 'px solid black',
         margin: '10px 5px 10px 5px',
         background: '#39fad2',
-        borderRadius: '15px'
+        borderRadius: '15px',
+        width: '60px',
+        height: '60px'
     };
 
     const img_div_style = {
@@ -39,7 +42,9 @@ class TeamDisplay extends React.Component {
 
     var len = Math.max(this.props.team_location.length, this.props.team_name.length);
     var name_size;
-    if (len > 12) {
+    if (len > 18) {
+        name_size = 13;
+    } else if (len > 12) {
         name_size = 22;
     } else if (len > 8) {
         name_size = 24;
