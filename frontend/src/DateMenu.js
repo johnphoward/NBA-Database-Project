@@ -26,17 +26,15 @@ class DateMenu extends VerticalMenu {
         cursor: 'pointer'
     };
 
-    var selected_style = Object.assign({}, li_style, {backgroundColor: 'red'});
+    let selected_style = Object.assign({}, li_style, {backgroundColor: 'red'});
 
-    const dateList = this.props.dateArray.map((dateString) =>
-        <li key={dateString} style={dateString == this.state.date ? selected_style : li_style} onClick={_.partial(this.setDate, _, dateString)}>
+    return this.props.dateArray.map((dateString) =>
+        <li key={dateString} style={dateString === this.state.date ? selected_style : li_style} onClick={_.partial(this.setDate, _, dateString)}>
             {parseInt(dateString.substring(4, 6)).toString() + ' / ' +
              parseInt(dateString.substring(6)).toString() + ' / ' +
              dateString.substring(2,4)}
         </li>
     );
-
-    return dateList;
   }
 }
 export default DateMenu;

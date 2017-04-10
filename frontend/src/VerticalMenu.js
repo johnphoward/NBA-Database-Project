@@ -31,10 +31,10 @@ class VerticalMenu extends React.Component {
         padding: '0px',
         margin: '0px',
         overflow: 'scroll',
-        maxHeight: '500px'
+        maxHeight: '100%'
     };
 
-    var list_items = this.generateListItems();
+    let list_items = this.generateListItems();
 
     return (
         <div style={div_style}>

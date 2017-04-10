@@ -17,7 +17,7 @@ class InlineButton extends React.Component {
         paddingTop: '10px',
         paddingBottom: '10px',
         margin: '0px',
-        backgroundColor: 'cyan',
+        backgroundColor: this.props.color !== undefined ? this.props.color : '#aaaaaa',
         cursor: 'pointer',
     };
 

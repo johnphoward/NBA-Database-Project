@@ -49,8 +49,8 @@ class GameBasics extends React.Component {
         textAlign: 'center'
     };
 
-    var date, away, away_location, away_nickname, away_score, home, home_location, home_nickname, home_score;
-    var away_record, home_record;
+    let date, away, away_location, away_nickname, away_score, home, home_location, home_nickname, home_score;
+    let away_record, home_record;
 
     if (this.props.data['date'] != undefined) {
         date = this.props.data['date'];
@@ -78,7 +78,7 @@ class GameBasics extends React.Component {
         home_record = "(55-27)";
     }
 
-    var valid_stats = (Object.keys(this.props.data).length > 0);
+    let valid_stats = (Object.keys(this.props.data).length > 0);
 
     return (
       <div style={outer_style} id="gamebasics">

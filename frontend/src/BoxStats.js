@@ -1,19 +1,46 @@
 import React from 'react';
 import _ from 'underscore';
-import SimulationWindow from './SimulationWindow';
 
 /**
  * Display all stats from game
  */
 class BoxStats extends React.Component {
-    constructor(props) {
-        super(props);
 
-        // this.populateBoxScore = this.populateBoxScore.bind(this);
+    generateBoxScore(pairs) {
+        const header_size = 44;
+        const line_size = 18;
+        const base_style = {
+            width: '30%',
+            display: 'inline-block',
+            textAlign: 'center',
+        };
+
+        const left_style = Object.assign({}, base_style, {float: 'left'});
+        const right_style = Object.assign({}, base_style, {float: 'right'});
+        const center_style = Object.assign({}, base_style, {width: '40%'});
+        const size_style = {
+            marginBottom: 'calc((100% - ' + header_size + 'px - ' + (10 * line_size) + 'px) / 10)'
+        };
+
+        return pairs.map((stat_list) =>
+            <li style={size_style} key={stat_list[0]}>
+                <div style={left_style}>
+                    {stat_list[1]}
+                </div>
+                <div style={center_style}>
+                    <b>{stat_list[2]}</b>
+                </div>
+                <div style={right_style}>
+                    {stat_list[3]}
+                </div>
+            </li>);
     }
 
 
-    generateBoxScore(away, home, data, real_data) {
+    render() {
+        let real_data = this.props.data.hasOwnProperty('away');
+        let data = this.props.data;
+
         const stats_needed = ['points', 'fg', '3p', 'ft', 'orb', 'drb', 'ast', 'stl','blk', 'tov'];
         const stat_names = ['Points', 'Field Goals', '3PT Field Goals', 'Free Throws', 'Offensive Rebounds', 'Defensive Rebounds', 'Assists', 'Steals', 'Blocks', 'Turnovers'];
         const pct_stats = ['fg', '3p', 'ft'];
@@ -33,98 +60,12 @@ class BoxStats extends React.Component {
         const get_away_stats = _.partial(stat_map_fn, 'away', _);
         const get_home_stats = _.partial(stat_map_fn, 'home', _);
 
-        const h2_style = {
-            width: '30%',
-            display: 'inline-block',
-            textAlign: 'center',
-            margin: '8px 0px',
-            textDecoration: 'underline'
-        };
+        let away_stats = stats_needed.map(get_away_stats);
+        let home_stats = stats_needed.map(get_home_stats);
 
-        const away_style = Object.assign({}, h2_style, {float: 'left'});
-        const home_style = Object.assign({}, h2_style, {float: 'right'});
+        let data_lists = _.zip(stats_needed, away_stats, stat_names, home_stats);
 
-        const vanishing_style = {
-            width: '40%',
-            display: 'inline-block',
-            textAlign: 'center',
-            color: 'white',
-            margin: '8px 0px',
-        };
-
-        const header_size = 44;
-        const line_size = 18;
-
-        const ul_style = {
-            margin: '0px',
-            listStyleType: 'none',
-            padding: '0px'
-        };
-
-        const base_style = {
-            width: '30%',
-            display: 'inline-block',
-            textAlign: 'center',
-
-        };
-
-        const left_style = Object.assign({}, base_style, {float: 'left'});
-        const right_style = Object.assign({}, base_style, {float: 'right'});
-        const center_style = Object.assign({}, base_style, {width: '40%'});
-        const size_style = {
-            marginBottom: 'calc((100% - ' + header_size + 'px - ' + (10 * line_size) + 'px) / 10)'
-        };
-
-
-        var away_stats = stats_needed.map(get_away_stats);
-        var home_stats = stats_needed.map(get_home_stats);
-
-        var pairs = _.zip(stats_needed, away_stats, stat_names, home_stats);
-
-        var list_items = pairs.map((stat_list) =>
-            <li style={size_style} key={stat_list[0]}>
-                <div style={left_style}>
-                    {stat_list[1]}
-                </div>
-                <div style={center_style}>
-                    <b>{stat_list[2]}</b>
-                </div>
-                <div style={right_style}>
-                    {stat_list[3]}
-                </div>
-            </li>);
-
-        return (
-            <div>
-                <h2 style={away_style}>
-                    {away}
-                </h2>
-                <h2 style={vanishing_style}>.</h2>
-                <h2 style={home_style}>
-                    {home}
-                </h2>
-                <ul style={ul_style}>
-                    {list_items}
-                </ul>
-            </div>
-        );
-    }
-
-
-    render() {
         const outer_style = {
-            width: 'calc(100% - 10px)',
-            height: 'calc(60% - 10px)',
-            background: '#555555',
-            display: 'inline-block',
-            margin: '5px',
-            padding: '0px',
-            border: '1px solid black',
-            borderRadius: '5px',
-
-        };
-
-        const inner_style = {
             width: 'calc(50% - 10px)',
             height: 'calc(100% - 10px)',
             background: 'white',
@@ -136,20 +77,61 @@ class BoxStats extends React.Component {
             overflow: 'scroll'
         };
 
-        var real_data = (Object.keys(this.props.data).length > 0);
+        const h2_style = {
+            width: '30%',
+            display: 'inline-block',
+            textAlign: 'center',
+            margin: '8px 0px',
+            textDecoration: 'underline'
+        };
 
-        var data = real_data ? this.props.data['box_score']: {};
-        var away = real_data ? this.props.data['away'] : 'GSW';
-        var home = real_data ? this.props.data['home'] : 'OKC';
+        const ul_style = {
+            margin: '0px',
+            listStyleType: 'none',
+            padding: '0px'
+        };
+
+        const vanishing_style = {
+            width: '40%',
+            display: 'inline-block',
+            textAlign: 'center',
+            color: 'white',
+            margin: '8px 0px',
+        };
+
+        const sim_style = {
+            width: '40%',
+            display: 'inline-block',
+            textAlign: 'center',
+            margin: '8px 0px',
+            backgroundColor: 'red',
+            color: 'white'
+        };
+
+        const away_style = Object.assign({}, h2_style, {float: 'left'});
+        const home_style = Object.assign({}, h2_style, {float: 'right'});
 
         return (
             <div style={outer_style}>
-                <div style={inner_style}>
-                    {this.generateBoxScore(away, home, data, real_data)}
-                </div>
-                <SimulationWindow />
-            </div>
+                <div>
+                    <h2 style={away_style}>
+                        {this.props.away}
+                    </h2>
 
+                    {this.props.simulation ? (
+                        <h2 style={sim_style}>Simulation</h2>
+                    ) : (
+                        <h2 style={vanishing_style}>.</h2>
+                    )}
+
+                    <h2 style={home_style}>
+                        {this.props.home}
+                    </h2>
+                    <ul style={ul_style}>
+                        {this.generateBoxScore(data_lists)}
+                    </ul>
+                </div>
+            </div>
         );
     }
 }

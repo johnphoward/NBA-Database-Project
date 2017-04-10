@@ -10,10 +10,16 @@ import UIUtilities from './UIUtilities';
 class GameMenu extends VerticalMenu {
   constructor(props) {
     super(props);
+    this.state = {
+        game: null
+    };
     this.setGame = this.setGame.bind(this);
   }
 
   setGame(evt, game) {
+    this.setState({
+        game: game
+    });
     this.props.callback(game);
   }
 
@@ -28,6 +34,8 @@ class GameMenu extends VerticalMenu {
         background: '#16bfdd',
         cursor: 'pointer'
     };
+
+    const selected_style = Object.assign({}, div1_style, {background: 'red'});
 
     const im1_style = {
         float: 'left',
@@ -60,11 +68,11 @@ class GameMenu extends VerticalMenu {
         color: 'white'
     };
 
-    var utilities = new UIUtilities();
+    let utilities = new UIUtilities();
 
-    const gameList = this.props.gameArray.map((game) =>
+    return this.props.gameArray.map((game) =>
         <li key={game['game_id']} style={li_style} onClick={_.partial(this.setGame, _, game['game_id'])}>
-            <div style={div1_style}>
+            <div style={this.state.game === game['game_id'] ? selected_style : div1_style}>
                 <img src = {utilities.getLogoURL(game['away'], 50, 50)} style={im1_style}/>
                 <img src = {utilities.getLogoURL(game['home'], 50, 50)} style={im2_style}/>
                 <p style={p1_style}>{game['away']}</p>
@@ -74,7 +82,6 @@ class GameMenu extends VerticalMenu {
         </li>
     );
 
-    return gameList;
   }
 }
 export default GameMenu;

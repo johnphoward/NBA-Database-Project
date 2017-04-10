@@ -1,7 +1,8 @@
 import React from 'react';
 import GameBasics from './GameBasics';
-import DataFetcher from './DataFetcher';
-import BoxStats from './BoxStats';
+import RequestManager from './RequestManager';
+import BoxWrapper from './BoxWrapper';
+
 
 /**
  * This class holds all of the sub-elements of the window displaying the game
@@ -12,7 +13,7 @@ class GameWindow extends React.Component {
       this.state = {
           game_id: this.props.game,
           game_data: {},
-          dataFetcher: new DataFetcher()
+          request_manager   : new RequestManager()
       };
 
       this.setData = this.setData.bind(this);
@@ -27,7 +28,7 @@ class GameWindow extends React.Component {
   componentWillReceiveProps(nextProps) {
       var endpoint = 'gameinformation=' + nextProps.game;
       this.setState({game_id: nextProps.game});
-      this.state.dataFetcher.fetchData(endpoint, this.setData);
+      this.state.request_manager.fetchData(endpoint, this.setData);
   }
 
   render() {
@@ -46,7 +47,7 @@ class GameWindow extends React.Component {
     return (
       <div style={style} id="gamewindow">
         <GameBasics data={this.state.game_data}/>
-        <BoxStats data={this.state.game_data}/>
+        <BoxWrapper data={this.state.game_data}/>
       </div>
 
     );

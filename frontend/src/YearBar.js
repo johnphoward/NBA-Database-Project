@@ -1,6 +1,5 @@
 import React from 'react';
-
-var _ = require('underscore');
+import _ from 'underscore';
 
 /**
  * For selecting the year of the selection window
@@ -33,14 +32,15 @@ class YearBar extends React.Component {
 
     const li_style = {
         display: 'inline',
-        marginRight: '8px'
+        marginRight: '8px',
+        cursor: 'pointer'
     };
 
-    var selected_style = Object.assign({}, li_style, {color: 'cyan'});
+    let selected_style = Object.assign({}, li_style, {color: 'cyan'});
 
     const years = _.range(2006, 2018);
     const year_list = years.map((yr) =>
-        <li key={yr} style={yr == this.state.year ? selected_style : li_style} onClick={_.partial(this.setYear, _, yr)}>
+        <li key={yr} style={yr === this.state.year ? selected_style : li_style} onClick={_.partial(this.setYear, _, yr)}>
             {yr}
         </li>
     );

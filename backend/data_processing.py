@@ -1,6 +1,23 @@
 import numpy as np
+from json import dumps
+from random import gauss
 from backend.db_engine import Engine
 from backend.settings import SEASON_LIST
+
+EFFICIENCY_DEVIATION = 12.0
+PACE_DEVIATION = 2.0
+OFF_RATING_DEVIATION = 6.0
+FGA_DEVIATION = 5.0
+FGA3_DEVIATION = 3.5
+FG3_PCT_DEVIATION = 8.0
+FG2_PCT_DEVIATION = 3.5
+FT_PCT_DEVIATION = 6.0
+ORB_PCT_DEVIATION = 0.06
+ASSIST_DEVIATION = 0.07
+TURNOVER_DEVIATION = 3.0
+STEAL_DEVIATION = 2.5
+BLOCK_DEVIATION = 2.0
+LEAGUE_AVG_MISSED_SHOTS = 46
 
 
 class DataProcessor:
@@ -76,4 +93,131 @@ class DataProcessor:
         for season in SEASON_LIST:
             self.process_all_stats_for_year(season)
 
-        # self.engine.create_stored_procedure()
+    @staticmethod
+    def calculate_team_shooting(points, pace, stats):
+        pace_ratio = pace / stats['pace']
+        scoring_ratio = points / stats['ppg']
+        fga = int(gauss(stats['fgapg'] * pace_ratio, FGA_DEVIATION))
+
+        fga_3 = int(gauss(stats['3fgapg'] * pace_ratio, FGA3_DEVIATION))
+        pct_3pt = max(gauss(stats['3fg_pct'] * scoring_ratio, FG3_PCT_DEVIATION), 0)
+        made_3s = int(round(fga_3 * pct_3pt / 100.0, 0))
+
+        remaining_pts = points - made_3s * 3
+        avg_two_pt_fgpct = max((stats['fgmpg'] - stats['3fgmpg']) / (stats['fgapg'] - stats['3fgapg']), 0)
+
+        ftm = -1
+        # make sure that the randomized values are mathematically valid
+        while ftm < 0:
+            two_pt_fga = fga - fga_3
+            two_pt_fg_pct = gauss(avg_two_pt_fgpct * scoring_ratio * 100.0, FG2_PCT_DEVIATION)
+            two_pt_fgm = int(round(two_pt_fga * two_pt_fg_pct / 100.0, 0))
+            ftm = remaining_pts - two_pt_fgm * 2
+            fgm = two_pt_fgm + made_3s
+
+        ft_pct = gauss(stats['ft_pct'], FT_PCT_DEVIATION)
+        fta = int(round(ftm / ft_pct * 100.0, 0))
+
+        return {
+            'points': points,
+            'fgm': fgm,
+            'fga': fga,
+            '3pm': made_3s,
+            '3pa': fga_3,
+            'ftm': ftm,
+            'fta': fta
+        }
+
+    def generate_simulation(self, away_team_id, home_team_id):
+        """
+        Simulate an NBA game using the stats of each team and basic gaussian distributions
+        Will attempt to create stats that could describe a real game
+        This is not a particularly mathematically correct way to simulate necessarily
+        :param away_team_id: int id of the away team stat row in DB
+        :param home_team_id: int id of the home team stat row in DB
+        :return: a box score for a game
+        """
+        away_stats = self.engine.get_stat_row(away_team_id)
+        home_stats = self.engine.get_stat_row(home_team_id)
+
+        # error check that a given game id is valid
+        if away_stats == {} or home_stats == {}:
+            raise ValueError
+
+        # give a nudge to the home team in the form of a 2.5 point efficiency bump
+        efficiency_difference = home_stats['net_rating'] - away_stats['net_rating'] + 2.5
+        randomized_diff = gauss(efficiency_difference, EFFICIENCY_DEVIATION)
+
+        average_pace = (home_stats['pace'] + away_stats['pace']) / 2.0
+        randomized_pace = gauss(average_pace, PACE_DEVIATION)
+
+        randomized_home_efficiency = gauss(home_stats['offensive_rating'], OFF_RATING_DEVIATION)
+        away_efficiency = randomized_home_efficiency - randomized_diff
+
+        # calculate actual point totals now
+        away_points = int(away_efficiency * randomized_pace / 100.0)
+        home_points = int(randomized_home_efficiency * randomized_pace / 100.0)
+        if away_points == home_points:
+            away_points += int(efficiency_difference < 0)
+            home_points += int(efficiency_difference >= 0)
+        
+        away_sim = self.calculate_team_shooting(away_points, randomized_pace, away_stats)
+        home_sim = self.calculate_team_shooting(home_points, randomized_pace, home_stats)
+
+        away_rebounds_available = away_sim['fga'] - away_sim['fgm'] + away_sim['fta'] - away_sim['ftm']
+        expected_oreb_pct = away_stats['orpg'] / (away_stats['orpg'] + home_stats['drpg'])
+        oreb_pct = gauss(expected_oreb_pct, ORB_PCT_DEVIATION)
+        away_orb = int(round(oreb_pct * away_rebounds_available, 0))
+        home_drb = away_rebounds_available - away_orb
+
+        home_rebounds_available = home_sim['fga'] - home_sim['fgm'] + home_sim['fta'] - home_sim['ftm']
+        expected_oreb_pct = home_stats['orpg'] / (home_stats['orpg'] + away_stats['drpg'])
+        oreb_pct = gauss(expected_oreb_pct, ORB_PCT_DEVIATION)
+        home_orb = int(round(oreb_pct * home_rebounds_available, 0))
+        away_drb = home_rebounds_available - home_orb
+
+        away_assist_pct = gauss(away_stats['apg'] * 1.0 / away_stats['fgmpg'], ASSIST_DEVIATION)
+        away_ast = int(round(away_assist_pct * away_sim['fgm'], 0))
+        home_assist_pct = gauss(home_stats['apg'] * 1.0 / home_stats['fgmpg'], ASSIST_DEVIATION)
+        home_ast = int(round(home_assist_pct * home_sim['fgm'], 0))
+
+        pt_ratio = home_points * 1.0 / away_points
+        away_tov = max(int(round(gauss(away_stats['tovpg'] * pt_ratio, TURNOVER_DEVIATION), 0)), 0)
+        home_tov = max(int(round(gauss(home_stats['tovpg'] / pt_ratio, TURNOVER_DEVIATION), 0)), 0)
+
+        away_stl = max(int(round(home_tov - gauss(away_stats['stlpg'], STEAL_DEVIATION), 0)), 0)
+        home_stl = max(int(round(away_tov - gauss(home_stats['stlpg'], STEAL_DEVIATION), 0)), 0)
+
+        away_blk_pct = away_stats['blkpg'] / LEAGUE_AVG_MISSED_SHOTS
+        home_shots_missed = home_sim['fga'] - home_sim['fgm']
+        away_blk = max(int(round(gauss(away_blk_pct * home_shots_missed, BLOCK_DEVIATION), 0)), 0)
+
+        home_blk_pct = home_stats['blkpg'] / LEAGUE_AVG_MISSED_SHOTS
+        away_shots_missed = away_sim['fga'] - away_sim['fgm']
+        home_blk = max(int(round(gauss(home_blk_pct * away_shots_missed, BLOCK_DEVIATION), 0)), 0)
+
+        away_misc_stats = {
+            'orb': away_orb,
+            'drb': away_drb,
+            'ast': away_ast,
+            'stl': away_stl,
+            'blk': away_blk,
+            'tov': away_tov
+        }
+
+        home_misc_stats = {
+            'orb': home_orb,
+            'drb': home_drb,
+            'ast': home_ast,
+            'stl': home_stl,
+            'blk': home_blk,
+            'tov': home_tov
+        }
+
+        away_sim.update(away_misc_stats)
+        home_sim.update(home_misc_stats)
+
+        return dumps({
+            'away': away_sim,
+            'home': home_sim
+        })

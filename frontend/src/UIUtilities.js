@@ -73,7 +73,7 @@ class UIUtilities {
       'UTA':'#0000b3',
       'WAS':'#000080',
       'NJN':'#262673',
-      'CHA':'#e62e00',
+      'CHA':'#ff592b',
       'NOH':'#0fa4cd',
       'NOK':'#0fa4cd',
       'SEA':'#006a00'

@@ -3,8 +3,8 @@ import InlineButton from './InlineButton';
 import YearBar from './YearBar';
 import DateMenu from './DateMenu';
 import GameMenu from './GameMenu';
-import DataFetcher from './DataFetcher';
-
+import CustomMatchupBar from './CustomMatchupBar';
+import RequestManager from './RequestManager';
 
 /**
  * This will be the base of the bar for selecting the game to display
@@ -21,7 +21,7 @@ class SelectionBar extends React.Component {
         dateArray: [],
         game: null,
         gameArray: [],
-        dataFetcher: new DataFetcher()
+        requestManager: new RequestManager()
     };
 
     this.showScheduled = this.showScheduled.bind(this);
@@ -53,9 +53,9 @@ class SelectionBar extends React.Component {
         dateArray: [],
         gameArray: []
     });
-    var endpoint = 'scheduleforseason=' + year.toString();
+    let endpoint = 'scheduleforseason=' + year.toString();
 
-    this.state.dataFetcher.fetchData(endpoint, this.loadSchedule);
+    this.state.requestManager.fetchData(endpoint, this.loadSchedule);
   }
 
   setDateForBar(date) {
@@ -67,14 +67,14 @@ class SelectionBar extends React.Component {
 
   setGameForBar(givenGame) {
     this.setState({game: givenGame});
-    if (this.props.game_callback != null) {
+    if (this.props.game_callback !== null) {
       this.props.game_callback(givenGame);
     }
   }
 
   componentDidMount() {
-    var today = new Date();
-    var season = today.getMonth() > 8 ? today.getFullYear() + 1 : today.getFullYear();
+    let today = new Date();
+    let season = today.getMonth() > 8 ? today.getFullYear() + 1 : today.getFullYear();
     this.setYearForBar(season);
   }
 
@@ -99,35 +99,38 @@ class SelectionBar extends React.Component {
     };
 
     const menu_div_style = {
-        position: 'absolute',
         width: '100%',
         float: 'left',
-        bottom: '0px',
         height: '80%'
     };
 
     const top_div_style = {
-        position: 'absolute',
         width: '100%',
         top: '0px',
-    }
+    };
+
+    let scheduled_color = this.state.scheduled ? 'cyan' : '#aaaaaa';
+    let custom_color = this.state.scheduled ? '#aaaaaa' : 'cyan';
 
     return (
-      <div style={bar_style} id="selectionbar">
-        <div style={top_div_style}>
+      <div style={bar_style} id="selectionbar" ref="selection_bar">
+        <div style={top_div_style} ref="selection_top">
             <h2 style={header_style}>Select a game to view</h2>
-            <InlineButton text="Scheduled" total={2} callback={this.showScheduled}/>
-            <InlineButton text="Customized" total={2} callback={this.showCustom}/>
-            <YearBar callback={this.setYearForBar}/>
+            <InlineButton text="Scheduled" total={2} callback={this.showScheduled} color={scheduled_color}/>
+            <InlineButton text="Customized" total={2} callback={this.showCustom} color={custom_color}/>
         </div>
 
         {this.state.scheduled ? (
-            <div style={menu_div_style}>
+            <div style={menu_div_style} ref="selection_menu">
+                <YearBar callback={this.setYearForBar}/>
                 <DateMenu dateArray={this.state.dateArray} callback={this.setDateForBar}/>
                 <GameMenu gameArray={this.state.gameArray} callback={this.setGameForBar}/>
             </div>
         ) : (
-            <div>Custom</div>
+            <div>
+                <CustomMatchupBar callback={this.setGameForBar} />
+
+            </div>
         )}
 
       </div>

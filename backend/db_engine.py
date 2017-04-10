@@ -67,6 +67,7 @@ class Engine:
     def __init__(self):
         self.db = MySQLdb.connect(HOST, USER, PASSWORD, DATABASE)
         self.cursor = self.db.cursor()
+        self.db.autocommit(True)
 
     def insert_box_score(self, data_tuple):
         """ Insert one box score into box_scores table at a time """
@@ -121,7 +122,7 @@ class Engine:
         """ Get a list of all scheduled games in the league for a given season """
         cmd = ("SELECT game_id, date, away_team, home_team "
                "FROM schedule "
-               "WHERE season_year=%s "
+               "WHERE season_year=%d "
                "ORDER BY game_id" % year)
         self.cursor.execute(cmd)
         games = map(self.game_tuple_to_game, self.cursor.fetchall())
@@ -217,24 +218,6 @@ class Engine:
 
         self.cursor.execute(insert_cmd)
 
-    def create_stored_procedure(self):
-        procedure_cmd = ("DROP PROCEDURE IF EXISTS nba_stats.game_stats;\n"
-                         "DELIMITER $$\n"
-                         "CREATE PROCEDURE nba_stats.game_stats("
-                         "IN this_game_id VARCHAR(12), "
-                         "IN team_name VARCHAR(3), "
-                         "IN game_year INT)\n"
-                         "BEGIN\n"
-                         "SELECT * from team_stats where "
-                         "year=game_year and team=team_name and game_number="
-                         "(SELECT count(game_id) FROM nba_stats.schedule where "
-                         "season_year=game_year and (away_team=team_name or home_team=team_name)"
-                         "and game_id < this_game_id);\n"
-                         "END$$\n"
-                         "DELIMITER ;")
-        self.cursor.execute(procedure_cmd)
-        self.cursor.fetchall()
-
     @staticmethod
     def box_score_tuple_to_dict(game_tup):
         if game_tup is None:
@@ -279,6 +262,7 @@ class Engine:
             return {}
         other_stats = map(float, stat_tup[6:])
         return {
+            'stat_id': int(stat_tup[0]),
             'record': '%d-%d' % (stat_tup[4], stat_tup[5]),
             'offensive_rating': other_stats[0],
             'defensive_rating': other_stats[1],
@@ -301,6 +285,23 @@ class Engine:
             'blkpg': other_stats[18],
             'tovpg': other_stats[19],
         }
+
+    @staticmethod
+    def overview_tuple_to_dict(overview_tup):
+        overview_tup = list(overview_tup)
+        stat_names = ['stat_id', 'game_number', 'wins', 'losses', 'net_rating', 'full_name']
+        dictionary = dict(zip(stat_names, list(overview_tup)))
+        dictionary['net_rating'] = float(dictionary['net_rating'])
+        return dictionary
+
+    def get_season_stat_overview(self, season, team):
+        stats_to_pull = ['stat_id', 'game_number', 'wins', 'losses', 'net_rating', 'full_name']
+        base = 'SELECT {stats} from team_stats join teams on team=team_abbreviation where year={yr} and team="{tm}";'
+        cmd = base.format(stats=', '.join(stats_to_pull), yr=season, tm=team)
+        self.cursor.execute(cmd)
+        results = self.cursor.fetchall()
+        return [self.overview_tuple_to_dict(tup) for tup in results]
+
 
     def get_game_data(self, game_id):
         """
@@ -343,6 +344,67 @@ class Engine:
         }
 
         return dumps(response)
+
+    def get_stat_row(self, row_id):
+        """ Select contents of stat row for given id and convert to dict to return """
+        cmd = 'SELECT * FROM team_stats WHERE stat_id="%d"' % row_id
+        self.cursor.execute(cmd)
+        return self.stat_tuple_to_dict(self.cursor.fetchone())
+
+    @staticmethod
+    def convert_sim_to_box_score_tuple(box_score_dict, sim_id):
+        front = [None, sim_id, None]
+        away = []
+        home = []
+        for stat in ['points', 'fgm', 'fga', '3pm', '3pa', 'ftm', 'fta', 'orb', 'drb', 'ast', 'stl', 'blk', 'tov']:
+            # cast to int just to ensure data in box score is valid
+            away.append(int(box_score_dict['away'][stat]))
+            home.append(int(box_score_dict['home'][stat]))
+
+        return tuple(front + away + home + [48])
+
+    def save_simulation(self, sim_data):
+        """ Insert simulation into database- one entry in simulations table and one in box_scores """
+        values = '(0, "{name}", NOW(), {away}, {home})'.format(name=sim_data['save_name'],
+                                                               away=sim_data['away_tm_id'],
+                                                               home=sim_data['home_tm_id'])
+        cmd = 'INSERT INTO simulations VALUES {row};'.format(row=values)
+        self.cursor.execute(cmd)
+        self.cursor.fetchall()
+        self.cursor.execute('SELECT LAST_INSERT_ID();')
+        sim_id = int(self.cursor.fetchone()[0])
+
+        box_tuple = self.convert_sim_to_box_score_tuple(sim_data['box_score'], sim_id)
+        self.insert_box_score(box_tuple)
+        self.commit_changes()
+        return sim_id
+
+    @staticmethod
+    def sim_tuple_to_dict(sim_tup):
+        return {
+            'simulation_id': sim_tup[0],
+            'save_name': sim_tup[1],
+            'timestamp': sim_tup[2].strftime("%m/%d/%y %H:%M"),
+            'away_tm_id': sim_tup[3],
+            'home_tm_id': sim_tup[4]
+        }
+
+    def fetch_saved_simulations(self):
+        cmd = 'SELECT * FROM simulations ORDER BY simulation_id DESC LIMIT 25;'
+        self.cursor.execute(cmd)
+        simulations = self.cursor.fetchall()
+        return map(self.sim_tuple_to_dict, simulations)
+
+    def delete_simulation(self, sim_id):
+        box_cmd = 'DELETE FROM box_scores where simulation_id={sid}'.format(sid=sim_id)
+        self.cursor.execute(box_cmd)
+        self.cursor.fetchall()
+        sim_cmd = 'DELETE FROM simulations where simulation_id={sid}'.format(sid=sim_id)
+        self.cursor.execute(sim_cmd)
+        self.cursor.fetchall()
+        self.commit_changes()
+
+
 
     def commit_changes(self):
         """ Commit all changes to the database """
