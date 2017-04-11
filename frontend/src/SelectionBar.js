@@ -43,8 +43,9 @@ class SelectionBar extends React.Component {
   loadSchedule(data) {
     this.setState({
         currentYearData: data,
-        dateArray: Object.keys(data)
+        dateArray: Object.keys(data),
     });
+    this.setDateForBar(Object.keys(data)[0]);
   }
 
   setYearForBar(year) {

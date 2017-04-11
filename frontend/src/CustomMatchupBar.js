@@ -11,15 +11,12 @@ class CustomMatchupBar extends React.Component {
 
         this.state = {
             awayID: -1,
-            awayYear: -1,
-            awayName: -1,
-            awayGameNo: -1,
+            awayString: 'No team selected',
             homeID: -1,
-            homeYear: -1,
-            homeName: -1,
-            homeGameNo: -1,
+            homeString: 'No team selected',
             selectingAway: true,
             year: 2017,
+            currentGameNumber: 1,
             teamsForYear: [],
             teamSelected: null,
             selectedTeamGames: [],
@@ -32,8 +29,34 @@ class CustomMatchupBar extends React.Component {
         this.setYear = this.setYear.bind(this);
         this.setTeamSelected = this.setTeamSelected.bind(this);
         this.setSelectedTeamGames = this.setSelectedTeamGames.bind(this);
+        this.updateGameNumber = this.updateGameNumber.bind(this);
+        this.selectButtonPressed = this.selectButtonPressed.bind(this);
+        this.goButtonPressed = this.goButtonPressed.bind(this);
 
         this.getTeamsForSeason(this.state.year);
+    }
+
+    goButtonPressed() {
+        if (this.state.awayID === -1) {
+            alert('Please select an away team.');
+        } else if (this.state.homeID === -1){
+            alert('Please select a home team.');
+        } else {
+            let away = this.state.awayID.toString();
+            let count = away.length;
+            for (count; count < 5; count++) {
+                away = '0' + away;
+            }
+
+            let home = this.state.homeID.toString();
+            count = home.length;
+            for (count; count < 5; count++) {
+                home = '0' + home;
+            }
+
+            let new_id = away + home + 'XX';
+            this.props.callback(new_id);
+        }
     }
 
     setSelectingAway(bool) {
@@ -53,12 +76,14 @@ class CustomMatchupBar extends React.Component {
         this.setState({
             teamsForYear: teamList,
             teamSelected: teamList.length > 0 ? teamList[0] : null
-        })
+        });
+        this.getSelectedTeamGames(this.state.year, teamList[0]);
     }
 
     setTeamSelected(team) {
         this.setState({
-            teamSelected: team
+            teamSelected: team,
+            currentGameNumber: ''
         });
         this.getSelectedTeamGames(this.state.year, team);
     }
@@ -70,13 +95,54 @@ class CustomMatchupBar extends React.Component {
 
     setSelectedTeamGames(gameList) {
         this.setState({
-            selectedTeamGames: gameList
+            selectedTeamGames: gameList,
         });
     }
 
     getSelectedTeamGames(season, team) {
         let endpoint = 'seasonstatoverview/season=' + season + '&team=' + team;
         this.state.requestManager.fetchData(endpoint, this.setSelectedTeamGames);
+    }
+
+    updateGameNumber(evt) {
+        let val = parseInt(evt.target.value);
+
+        let max_game = this.state.selectedTeamGames.length - 1;
+        if (isNaN(val) || val < 0) {
+            if (evt.target.value === "") {
+                val = "";
+            } else {
+                val = 1;
+            }
+        } else if (val > max_game) {
+            val = max_game;
+        }
+        this.setState({
+            currentGameNumber: val
+        });
+    }
+
+    selectButtonPressed() {
+        if (this.state.currentGameNumber === "") {
+            alert('Please enter a number');
+        } else {
+            let details = this.state.selectedTeamGames[this.state.currentGameNumber];
+            let id = details['stat_id'];
+            let name = details['full_name'];
+            let str = this.state.year.toString() + ' ' + name + ' (game ' + this.state.currentGameNumber.toString() + ')';
+            if (this.state.selectingAway) {
+                this.setState({
+                    awayString: str,
+                    awayID: id
+                });
+            } else {
+                this.setState({
+                    homeString: str,
+                    homeID: id
+                });
+            }
+        }
+
     }
 
     generateListItems(teamList) {
@@ -114,7 +180,7 @@ class CustomMatchupBar extends React.Component {
         };
 
         const description_style = {
-            width: '85%',
+            width: '80%',
             display: 'inline-block',
         };
 
@@ -133,6 +199,10 @@ class CustomMatchupBar extends React.Component {
         const string_style = {
             textAlign: 'center'
         };
+        const p_style = {
+            marginTop: '0em',
+            marginBottom: '0em',
+        };
 
         const ul_style = {
             width: '100%',
@@ -142,21 +212,27 @@ class CustomMatchupBar extends React.Component {
             clear: 'both',
         };
 
-        let away_color = this.state.selectingAway ? 'green' : '#aaaaaa';
-        let home_color = this.state.selectingAway ? '#aaaaaa' : 'green';
+        let away_color = this.state.selectingAway ? 'red' : '#aaaaaa';
+        let home_color = this.state.selectingAway ? '#aaaaaa' : 'red';
         let away_cb = _.partial(this.setSelectingAway, true);
         let home_cb = _.partial(this.setSelectingAway, false);
+
+        let current_state = this.state.selectedTeamGames[this.state.currentGameNumber];
+        let record = current_state !== undefined ? '(' + current_state['wins'].toString() + '-' + current_state['losses'].toString() + ')' : '(0-0)';
+        let net_rating = current_state !== undefined ? current_state['net_rating'].toString() : '0.00';
+        let record_string = 'Record: ' + record;
+        let net_rating_string = ' Net Rating: ' +  net_rating;
 
         return (
             <div>
                 <div style={outer_style}>
-                    <div style={button_div_style}>
+                    <div style={button_div_style} onClick={this.goButtonPressed}>
                         Go!
                     </div>
                     <div style={description_style}>
                         <div style={string_style}>
                             <strong>
-                                No team selected
+                                {this.state.awayString}
                             </strong>
                         </div>
                         <div style={string_style}>
@@ -164,7 +240,7 @@ class CustomMatchupBar extends React.Component {
                         </div>
                         <div style={string_style}>
                             <strong>
-                                No team selected
+                                {this.state.homeString}
                             </strong>
                         </div>
                     </div>
@@ -178,12 +254,17 @@ class CustomMatchupBar extends React.Component {
                     {this.generateListItems(this.state.teamsForYear)}
                 </ul>
                 <div style={outer_style}>
-                    <div style={button_div_style}>
+                    <div style={button_div_style} onClick={this.selectButtonPressed}>
                         Select
                     </div>
                     <div style={description_style}>
-                        <div>
-                            Game number: 
+                        <div style={{width: '40%', margin: '1em 0.5em', display: 'inline-block'}}>
+                            Game Number:
+                            <input size={2} maxLength={2} value={this.state.currentGameNumber} onChange={this.updateGameNumber}/>
+                        </div>
+                        <div style={{ display: 'inline-block', margin: '0.5em 0em'}}>
+                            <p style={p_style}>{record_string}</p>
+                            <p style={p_style}>{net_rating_string}</p>
                         </div>
 
                     </div>

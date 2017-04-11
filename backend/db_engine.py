@@ -302,48 +302,84 @@ class Engine:
         results = self.cursor.fetchall()
         return [self.overview_tuple_to_dict(tup) for tup in results]
 
-
     def get_game_data(self, game_id):
         """
         return all relevant data for a given game id to front end
         """
-        first_cmd = 'SELECT game_id, date, away_team, home_team FROM schedule where game_id="%s";' % game_id
-        self.cursor.execute(first_cmd)
-        response = self.game_tuple_to_game(self.cursor.fetchone())
+        # if character number 10 is a digit, this is a custom match-up. Else this is a scheduled game
+        if game_id[9].isdigit():
+            away_stat_id = game_id[:5]
+            home_stat_id = game_id[5:10]
+            response = {}
 
-        secondary = 'SELECT full_name, location, nickname from teams where team_abbreviation="{tm}"'
-        self.cursor.execute(secondary.format(tm=response['away']))
-        team_info = self.cursor.fetchone()
-        response['away_team_details'] = {'full': team_info[0], 'location': team_info[1], 'nickname': team_info[2]}
+            first_cmd = 'SELECT * from team_stats where stat_id={stat_id};'
+            away_cmd = first_cmd.format(stat_id=int(away_stat_id))
+            self.cursor.execute(away_cmd)
+            away_background = self.cursor.fetchone()
+            home_cmd = first_cmd.format(stat_id=int(home_stat_id))
+            self.cursor.execute(home_cmd)
+            home_background = self.cursor.fetchone()
+            response['stats'] = {
+                'away': self.stat_tuple_to_dict(away_background),
+                'home': self.stat_tuple_to_dict(home_background)
+            }
 
-        self.cursor.execute(secondary.format(tm=response['home']))
-        team_info = self.cursor.fetchone()
-        response['home_team_details'] = {'full': team_info[0], 'location': team_info[1], 'nickname': team_info[2]}
+            response['away'] = away_background[1]
+            response['home'] = home_background[1]
 
-        box_cmd = 'SELECT * from box_scores where schedule_id="{game}";'.format(game=game_id)
-        self.cursor.execute(box_cmd)
-        box_score = self.cursor.fetchone()
-        response['box_score'] = self.box_score_tuple_to_dict(box_score)
+            secondary = 'SELECT full_name, location, nickname from teams where team_abbreviation="{tm}"'
+            self.cursor.execute(secondary.format(tm=response['away']))
+            team_info = self.cursor.fetchone()
+            response['away_team_details'] = {'full': team_info[0], 'location': team_info[1], 'nickname': team_info[2]}
 
-        season = int(game_id[:4]) + int(int(game_id[4:6]) > 9)
-        away_back_cmd = 'Call game_stats("{id}", "{tm}", {yr});'.format(id=game_id, tm=response['away'], yr=season)
-        self.cursor.execute(away_back_cmd)
-        away_background = self.cursor.fetchone()
-        # solve weird Commands out of Sync error by closing after each stored
-        self.cursor.close()
-        self.cursor = self.db.cursor()
-        home_back_cmd = 'Call game_stats("{id}", "{tm}", {yr});'.format(id=game_id, tm=response['home'], yr=season)
-        self.cursor.execute(home_back_cmd)
-        home_background = self.cursor.fetchone()
-        self.cursor.close()
-        self.cursor = self.db.cursor()
+            self.cursor.execute(secondary.format(tm=response['home']))
+            team_info = self.cursor.fetchone()
+            response['home_team_details'] = {'full': team_info[0], 'location': team_info[1], 'nickname': team_info[2]}
 
-        response['stats'] = {
-            'away': self.stat_tuple_to_dict(away_background),
-            'home': self.stat_tuple_to_dict(home_background)
-        }
+            response['box_score'] = {}
+            response['date'] = 'Custom Matchup'
+            response['game_id'] = game_id
 
-        return dumps(response)
+            return dumps(response)
+
+        else:
+            first_cmd = 'SELECT game_id, date, away_team, home_team FROM schedule where game_id="%s";' % game_id
+            self.cursor.execute(first_cmd)
+            response = self.game_tuple_to_game(self.cursor.fetchone())
+
+            secondary = 'SELECT full_name, location, nickname from teams where team_abbreviation="{tm}"'
+            self.cursor.execute(secondary.format(tm=response['away']))
+            team_info = self.cursor.fetchone()
+            response['away_team_details'] = {'full': team_info[0], 'location': team_info[1], 'nickname': team_info[2]}
+
+            self.cursor.execute(secondary.format(tm=response['home']))
+            team_info = self.cursor.fetchone()
+            response['home_team_details'] = {'full': team_info[0], 'location': team_info[1], 'nickname': team_info[2]}
+
+            box_cmd = 'SELECT * from box_scores where schedule_id="{game}";'.format(game=game_id)
+            self.cursor.execute(box_cmd)
+            box_score = self.cursor.fetchone()
+            response['box_score'] = self.box_score_tuple_to_dict(box_score)
+
+            season = int(game_id[:4]) + int(int(game_id[4:6]) > 9)
+            away_back_cmd = 'Call game_stats("{id}", "{tm}", {yr});'.format(id=game_id, tm=response['away'], yr=season)
+            self.cursor.execute(away_back_cmd)
+            away_background = self.cursor.fetchone()
+            # solve weird Commands out of Sync error by closing after each stored
+            self.cursor.close()
+            self.cursor = self.db.cursor()
+            home_back_cmd = 'Call game_stats("{id}", "{tm}", {yr});'.format(id=game_id, tm=response['home'], yr=season)
+            self.cursor.execute(home_back_cmd)
+            home_background = self.cursor.fetchone()
+            self.cursor.close()
+            self.cursor = self.db.cursor()
+
+            response['stats'] = {
+                'away': self.stat_tuple_to_dict(away_background),
+                'home': self.stat_tuple_to_dict(home_background)
+            }
+
+            return dumps(response)
 
     def get_stat_row(self, row_id):
         """ Select contents of stat row for given id and convert to dict to return """
@@ -395,6 +431,18 @@ class Engine:
         simulations = self.cursor.fetchall()
         return map(self.sim_tuple_to_dict, simulations)
 
+    def load_simulation(self, sim_id):
+        cmd = 'SELECT * FROM box_scores where simulation_id={sim};'.format(sim=sim_id)
+        self.cursor.execute(cmd)
+        sim = self.cursor.fetchone()
+        return self.box_score_tuple_to_dict(sim)
+
+    def update_simulation(self, sim_id, save_name):
+        cmd = 'UPDATE simulations set save_name="{name}" where simulation_id={sim_id}'.format(name=save_name,
+                                                                                              sim_id=sim_id)
+        self.cursor.execute(cmd)
+        self.cursor.fetchall()
+
     def delete_simulation(self, sim_id):
         box_cmd = 'DELETE FROM box_scores where simulation_id={sid}'.format(sid=sim_id)
         self.cursor.execute(box_cmd)
@@ -403,8 +451,6 @@ class Engine:
         self.cursor.execute(sim_cmd)
         self.cursor.fetchall()
         self.commit_changes()
-
-
 
     def commit_changes(self):
         """ Commit all changes to the database """

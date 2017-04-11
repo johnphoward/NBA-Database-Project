@@ -47,7 +47,7 @@ class GameWindow extends React.Component {
     return (
       <div style={style} id="gamewindow">
         <GameBasics data={this.state.game_data}/>
-        <BoxWrapper data={this.state.game_data}/>
+        <BoxWrapper data={this.state.game_data} game_callback={this.props.game_callback}/>
       </div>
 
     );

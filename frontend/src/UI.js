@@ -36,7 +36,7 @@ class UI extends React.Component {
     return (
         <div style={style} id="myui">
             <SelectionBar game_callback={this.setGame}/>
-            <GameWindow game={this.state.game_id}/>
+            <GameWindow game={this.state.game_id} game_callback={this.setGame}/>
         </div>
     );
   }

@@ -59,7 +59,7 @@ class BoxWrapper extends React.Component {
         return (
             <div style={outer_style}>
                 <BoxStats away={away} home={home} data={data} simulation={this.state.showing_sim}/>
-                <SimulationWindow away_id={away_id} home_id={home_id} sim_callback={this.setSimulationState}/>
+                <SimulationWindow away_id={away_id} home_id={home_id} sim_callback={this.setSimulationState} game_callback={this.props.game_callback}/>
             </div>
 
         );

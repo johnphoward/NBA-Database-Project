@@ -14,7 +14,8 @@ class SimulationWindow extends React.Component {
             current_simulation: {},
             saved_simulations: [],
             selected_id: -1,
-            simulation_loaded: false
+            simulation_loaded: false,
+            simulation_updatable: false
         };
 
         this.request_manager = new RequestManager();
@@ -60,7 +61,8 @@ class SimulationWindow extends React.Component {
             save_name: '',
             current_simulation: {},
             selected_id: -1,
-            simulation_loaded: false
+            simulation_loaded: false,
+            simulation_updatable: false
         });
         this.loadSavedSimulations();
     }
@@ -71,25 +73,35 @@ class SimulationWindow extends React.Component {
     }
 
     saveButtonPressed() {
-        const save_endpoint = 'savesimulation';
+        if (!this.state.simulation_updatable) {
+            const save_endpoint = 'savesimulation';
 
-        if (this.state.current_simulation.hasOwnProperty('away')) {
-            let invalid = /[^a-zA-Z0-9]/.test(this.state.save_name) || this.state.save_name.length === 0;
-            if (!invalid) {
-                let data = {
-                    save_name: this.state.save_name,
-                    box_score: this.state.current_simulation,
-                    away_tm_id: this.props.away_id,
-                    home_tm_id: this.props.home_id
-                };
+            if (this.state.current_simulation.hasOwnProperty('away')) {
+                let invalid = /[^a-zA-Z0-9]/.test(this.state.save_name) || this.state.save_name.length === 0;
+                if (!invalid) {
+                    let data = {
+                        save_name: this.state.save_name,
+                        box_score: this.state.current_simulation,
+                        away_tm_id: this.props.away_id,
+                        home_tm_id: this.props.home_id
+                    };
 
-                this.request_manager.postData(save_endpoint, data, this.loadSavedSimulations, this.sameNameCallback);
+                    this.request_manager.postData(save_endpoint, data, this.loadSavedSimulations, this.sameNameCallback);
+                } else {
+                    alert('Save name must be non-empty and alphanumeric characters only');
+                }
             } else {
-                alert('Save name must be non-empty and alphanumeric characters only');
+                alert('There is no simulation to save!')
             }
         } else {
-            alert('There is no simulation to save!')
+            const update_endpoint = 'updatesimulation';
+            let data = {
+                save_name: this.state.save_name,
+                sim_id: this.state.selected_id
+            };
+            this.request_manager.postData(update_endpoint, data, this.loadSavedSimulations, this.sameNameCallback)
         }
+
     }
 
     storeSavedSimulations(sim_list) {
@@ -110,7 +122,33 @@ class SimulationWindow extends React.Component {
     }
 
     loadGameButtonPressed() {
+        let game = _.findWhere(this.state.saved_simulations, {simulation_id: this.state.selected_id});
+        let sim_id = game['simulation_id'];
 
+        let away = game['away_tm_id'].toString();
+        let count = away.length;
+        for (count; count < 5; count++) {
+            away = '0' + away;
+        }
+
+        let home = game['home_tm_id'].toString();
+        count = home.length;
+        for (count; count < 5; count++) {
+            home = '0' + home;
+        }
+
+        let new_id = away + home + 'XX';
+
+        this.props.game_callback(new_id);
+
+        this.setState({
+            save_name: game['save_name'],
+            simulation_updatable: true
+        });
+
+        const endpoint = 'loadsimulation=';
+        let url = endpoint + sim_id.toString();
+        this.request_manager.fetchData(url, this.onSimulationRecieved, false);
     }
 
     updateSaveName(evt) {
@@ -234,7 +272,13 @@ class SimulationWindow extends React.Component {
                     <h2 style={{margin: '10px'}}>Simulate this game!</h2>
                 </div>
                 <div style={save_div_style}>
-                    <p style={title_style}>Save your simulation</p>
+                    <p style={title_style}>
+                        {this.state.simulation_updatable ? (
+                            'Update your simulation'
+                        ) : (
+                            'Save your simulation'
+                        )}
+                    </p>
                     <div style={save_button_style} onClick={this.saveButtonPressed}>
                         Save!
                     </div>
