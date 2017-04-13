@@ -23,7 +23,8 @@ For the website back end:
 	pip install -r requirements.txt
 	python server.py
  - Please note that the connection details for my MySQL connection are hardcoded at the top of the backend/server.py script, and should be changed accordingly to fit your MySQL configuration. 
- - The 
+
+Database: The database file is a MySQL database dump, and thus the user will need MySQL installed. The database is named “nba_stats” and should be kept as such.
 
 Assuming the database has been loaded from the nba_stats.sql file that is part of this project, the application should then be fully functional. The website can be accessed by going to localhost:3000 in a browser. 
 
