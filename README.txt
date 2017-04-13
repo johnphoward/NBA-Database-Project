@@ -23,5 +23,8 @@ For the website back end:
 	pip install -r requirements.txt
 	python server.py
  - Please note that the connection details for my MySQL connection are hardcoded at the top of the backend/server.py script, and should be changed accordingly to fit your MySQL configuration. 
+ - The 
 
-Assuming the database has been loaded from the appropriate .sql file that is part of this project, the application should then be fully functional. The website can be accessed by going to localhost:3000 in a browser (Chrome is the browser it was developed on and there may be CSS that works for Chrome but not other browsers).
+Assuming the database has been loaded from the nba_stats.sql file that is part of this project, the application should then be fully functional. The website can be accessed by going to localhost:3000 in a browser. 
+
+Note: This website was developed specifically for Chrome and there may be CSS that works for Chrome but not other browsers. If you are not using a laptop or an Apple mouse with finger scrolling capabilities, you may want to remove the entire <style> tag in index.html, as it removes built in html scroll bars. There are several parts of the page (menus, etc) that rely on scrolling capabilities, but look better when these scroll bars are disabled, hence it currently relies on laptop-style finger scrolling. 
