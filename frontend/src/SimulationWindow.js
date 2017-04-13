@@ -118,7 +118,7 @@ class SimulationWindow extends React.Component {
     deleteSavedSimulation(event, sim_id) {
         const endpoint = 'delete_saved_simulation=';
         let url = endpoint + sim_id.toString();
-        this.request_manager.deleteItem(url, this.loadSavedSimulations);
+        this.request_manager.deleteItem(url, this.resetAllButtonPressed);
     }
 
     loadGameButtonPressed() {

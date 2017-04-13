@@ -1,6 +1,5 @@
 import MySQLdb
 from itertools import groupby
-from json import dumps
 from datetime import date
 
 HOST = 'localhost'
@@ -126,7 +125,7 @@ class Engine:
                "ORDER BY game_id" % year)
         self.cursor.execute(cmd)
         games = map(self.game_tuple_to_game, self.cursor.fetchall())
-        grouped = dumps({k: list(v) for k, v in groupby(games, lambda g: g['game_id'][:8])})
+        grouped = {k: list(v) for k, v in groupby(games, lambda g: g['game_id'][:8])}
         return grouped
 
     def insert_all_team_data(self):
@@ -340,7 +339,7 @@ class Engine:
             response['date'] = 'Custom Matchup'
             response['game_id'] = game_id
 
-            return dumps(response)
+            return response
 
         else:
             first_cmd = 'SELECT game_id, date, away_team, home_team FROM schedule where game_id="%s";' % game_id
@@ -379,7 +378,7 @@ class Engine:
                 'home': self.stat_tuple_to_dict(home_background)
             }
 
-            return dumps(response)
+            return response
 
     def get_stat_row(self, row_id):
         """ Select contents of stat row for given id and convert to dict to return """

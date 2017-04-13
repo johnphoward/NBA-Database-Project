@@ -1,8 +1,7 @@
 import numpy as np
-from json import dumps
 from random import gauss
-from backend.db_engine import Engine
-from backend.settings import SEASON_LIST
+from db_engine import Engine
+from settings import SEASON_LIST
 
 EFFICIENCY_DEVIATION = 12.0
 PACE_DEVIATION = 2.0
@@ -217,7 +216,7 @@ class DataProcessor:
         away_sim.update(away_misc_stats)
         home_sim.update(home_misc_stats)
 
-        return dumps({
+        return {
             'away': away_sim,
             'home': home_sim
-        })
+        }

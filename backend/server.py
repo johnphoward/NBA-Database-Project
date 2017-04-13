@@ -1,13 +1,20 @@
 import json
-from time import sleep
-from flask import Flask, Response, abort, request
+from flask import Flask, abort, request
 
-from backend.db_engine import Engine
-from backend.data_processing import DataProcessor
+from db_engine import Engine
+from data_processing import DataProcessor
 
 app = Flask(__name__)
 engine = Engine()
 processor = DataProcessor()
+
+
+@app.after_request
+def build_response(resp):
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept'
+    resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, DELETE'
+    return resp
 
 # Here begins the routing and corresponding calls
 
@@ -17,32 +24,31 @@ def get_schedule(season):
     """ send the league's schedule for a season to front end """
     # validation: converter <int:x> forces all values to ints, rejects otherwise
     # season must be a 4-character year, i.e. 2017
-    if not 2000 < season < 2020:
+    schedule = []
+    try:
+        schedule = engine.get_league_schedule_for_season(season)
+    except Exception:
         abort(400)
-    engine_response = engine.get_league_schedule_for_season(season)
-    resp = Response(engine_response)
-    resp.headers['Access-Control-Allow-Origin'] = '*'
-    resp.headers['Access-Control-Allow-Headers'] = '*'
-    return resp
+    return json.dumps(schedule)
 
 
 @app.route('/get_simulation/away=<int:away_id>&home=<int:home_id>')
 def make_simulation_for_teams(away_id, home_id):
     # validation: converter <int:x> forces all values to ints, rejects otherwise
     # processor will raise ValueError if not a valid row id
+    sim = {}
     try:
         sim = processor.generate_simulation(away_id, home_id)
     except ValueError:
         abort(400)
 
-    resp = Response(sim)
-    resp.headers['Access-Control-Allow-Origin'] = '*'
-    resp.headers['Access-Control-Allow-Headers'] = '*'
-    return resp
+    return json.dumps(sim)
 
 
-@app.route('/savesimulation', methods=['POST'])
+@app.route('/savesimulation', methods=['POST', 'OPTIONS'])
 def save_simulation():
+    if request.method == 'OPTIONS':
+        return json.dumps({'Allow': 'POST'})
     sim_data = json.loads(request.data)
     name_valid = all(char.isalnum() for char in sim_data['save_name'])
     shallow_box_valid = 'away' in sim_data['box_score'] and 'home' in sim_data['box_score']
@@ -57,7 +63,7 @@ def save_simulation():
     else:
         abort(400)
 
-    return json.dumps({'id': created_id}), 201
+    return json.dumps({'id': created_id}, 201)
 
 
 @app.route('/get_saved_simulations')
@@ -66,22 +72,29 @@ def get_saved_simulations():
     return json.dumps(sim_list)
 
 
-@app.route('/delete_saved_simulation=<int:sim_id>', methods=['DELETE'])
+@app.route('/delete_saved_simulation=<int:sim_id>', methods=['DELETE', 'OPTIONS'])
 def delete_saved_simulation(sim_id):
     # validate by casting to int. invalid id number will also raise error
+    if request.method == 'OPTIONS':
+        return json.dumps({'Allow': 'POST'})
     try:
         engine.delete_simulation(sim_id)
     except TypeError, Exception:
         abort(404)
 
-    return '{}', 200
+    return '{}', 201
 
 
 @app.route('/teamsforseason=<int:season>')
 def teams_in_league(season):
     """ send list of teams competing in league in given season to front end """
-    response = engine.get_teams_in_league(season)
-    return json.dumps(response), 200
+    teams = []
+    try:
+        teams = engine.get_teams_in_league(season)
+    except Exception:
+        # if bad year number
+        abort(400)
+    return json.dumps(teams)
 
 
 @app.route('/seasonstatoverview/season=<int:season>&team=<string:team>')
@@ -101,7 +114,11 @@ def get_season_overview(season, team):
 
 @app.route('/loadsimulation=<int:sim_id>')
 def load_simulation(sim_id):
-    sim = engine.load_simulation(sim_id)
+    sim = {}
+    try:
+        sim = engine.load_simulation(sim_id)
+    except Exception:
+        abort(400)
     return json.dumps(sim)
 
 
@@ -132,11 +149,11 @@ def get_game_info(gameid):
     if not (len(gameid) == 12 and valid_chars):
         abort(400)
 
-    engine_response = engine.get_game_data(gameid)
-    resp = Response(engine_response)
-    resp.headers['Access-Control-Allow-Origin'] = '*'
-    resp.headers['Access-Control-Allow-Headers'] = '*'
-    return engine_response
+    try:
+        game = engine.get_game_data(gameid)
+    except Exception:
+        abort(400)
+    return json.dumps(game)
 
 
 if __name__ == '__main__':

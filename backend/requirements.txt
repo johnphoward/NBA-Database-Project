@@ -1,0 +1,4 @@
+Flask
+requests
+MySQL-python
+numpy

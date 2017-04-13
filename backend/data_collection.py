@@ -1,8 +1,8 @@
 import requests
 from lxml import html
-from backend.db_engine import Engine
-from backend.data_processing import DataProcessor
-from backend.settings import SEASON_LIST, CURRENT_SEASON
+from db_engine import Engine
+from data_processing import DataProcessor
+from settings import SEASON_LIST, CURRENT_SEASON
 
 ZERO = '0'
 SLASH = '/'
